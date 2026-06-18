@@ -1,0 +1,520 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://essalab.github.io/Socotra/schemas/v1/schema.json",
+  "title": "Socotra YAML Config",
+  "description": "Schema for socotra.yaml — .NET solution scaffolding configuration. Defines the desired state of a .NET project: solution structure, modules, layers, architecture patterns, and scaffolding templates.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "socotra"
+  ],
+  "properties": {
+    "socotra": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Root configuration object. All fields are nested under this top-level key.",
+      "required": [
+        "version"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^1(\\.[0-9]+)?$",
+          "description": "Schema version. Currently versions 1, 1.0, and 1.1 are supported. The CLI validates this at runtime.",
+          "examples": [
+            "1",
+            "1.0",
+            "1.1"
+          ]
+        },
+        "solution": {
+          "$ref": "#/$defs/solutionConfig",
+          "description": "Defines the .NET solution and its global project settings."
+        },
+        "architecture": {
+          "$ref": "#/$defs/architectureConfig",
+          "description": "Architecture pattern and dependency constraints."
+        },
+        "modules": {
+          "type": "array",
+          "description": "List of business modules. Each module produces a set of related projects organized into layers.",
+          "items": {
+            "$ref": "#/$defs/moduleConfig"
+          },
+          "minItems": 0
+        },
+        "shared": {
+          "type": "array",
+          "description": "Shared projects referenced by modules. Not tied to any specific module.",
+          "items": {
+            "$ref": "#/$defs/sharedProjectConfig"
+          }
+        },
+        "host": {
+          "$ref": "#/$defs/hostConfig",
+          "description": "Host/entry-point project that references module API projects."
+        },
+        "scaffolding": {
+          "$ref": "#/$defs/scaffoldingConfig",
+          "description": "Custom scaffolding templates and variables."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "solutionConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defines the .NET solution file and global project defaults.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Solution name. Used for the .sln filename and solution folder structure.",
+          "examples": [
+            "MyApp",
+            "MyCompany.MyProduct"
+          ],
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9._-]+$"
+        },
+        "rootNamespace": {
+          "type": "string",
+          "description": "Root namespace for all generated code. Defaults to the solution name if not specified.",
+          "examples": [
+            "MyCompany.MyApp",
+            "MyApp"
+          ],
+          "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)*$"
+        },
+        "dotnetVersion": {
+          "type": "string",
+          "pattern": "^net",
+          "description": "Target framework moniker (TFM). Validated by the CLI at runtime.",
+          "examples": [
+            "net10.0",
+            "net9.0",
+            "net8.0",
+            "net9.0-windows",
+            "net11.0-android",
+            "netstandard2.0"
+          ]
+        },
+        "outputPath": {
+          "type": "string",
+          "description": "Directory where projects are created, relative to the solution root.",
+          "default": "./src",
+          "examples": [
+            "./src",
+            "./projects"
+          ]
+        },
+        "nullable": {
+          "type": "boolean",
+          "description": "Enable nullable reference types (<Nullable>enable</Nullable>).",
+          "default": true
+        },
+        "implicitUsings": {
+          "type": "boolean",
+          "description": "Enable implicit usings (<ImplicitUsings>enable</ImplicitUsings>).",
+          "default": true
+        },
+        "treatWarningsAsErrors": {
+          "type": "boolean",
+          "description": "Treat all warnings as errors (<TreatWarningsAsErrors>true</TreatWarningsAsErrors>).",
+          "default": true
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "architectureConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Architecture pattern configuration with optional layer constraint enforcement.",
+      "properties": {
+        "pattern": {
+          "$ref": "#/$defs/architecturePattern",
+          "description": "Architecture pattern that determines the solution structure.",
+          "default": "modular-monolith"
+        },
+        "enforceLayerConstraints": {
+          "type": "boolean",
+          "description": "When true, validates layer references against allowedDependencies and reports violations.",
+          "default": false
+        },
+        "allowedDependencies": {
+          "type": "array",
+          "description": "List of allowed dependency rules. Each rule defines a from/to glob pair.",
+          "items": {
+            "$ref": "#/$defs/dependencyRule"
+          }
+        }
+      }
+    },
+    "dependencyRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defines an allowed dependency path using glob patterns.",
+      "properties": {
+        "from": {
+          "type": "string",
+          "description": "Glob pattern matching the source project or layer.",
+          "examples": [
+            "*.Application",
+            "Orders.*",
+            "**"
+          ]
+        },
+        "to": {
+          "type": "string",
+          "description": "Glob pattern matching the target project or layer.",
+          "examples": [
+            "*.Domain",
+            "SharedKernel",
+            "**"
+          ]
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ]
+    },
+    "moduleConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defines a business module. Each module produces a set of related projects organized into layers.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Module name. Must be unique across all modules (case-insensitive). Used in project naming and solution folder structure.",
+          "examples": [
+            "Orders",
+            "Inventory",
+            "Identity"
+          ],
+          "pattern": "^[A-Za-z][A-Za-z0-9]*$"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Override namespace for this module's projects. Defaults to solution.rootNamespace.moduleName.",
+          "examples": [
+            "MyApp.Orders",
+            "MyCompany.Sales"
+          ],
+          "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)*$"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the module's purpose.",
+          "examples": [
+            "Order processing and fulfillment",
+            "User identity and access management"
+          ]
+        },
+        "layers": {
+          "type": "array",
+          "description": "List of layer definitions within this module. Each layer produces one .NET project.",
+          "items": {
+            "$ref": "#/$defs/layerConfig"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "name",
+        "layers"
+      ]
+    },
+    "layerConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defines a single project within a module, corresponding to a logical layer.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Layer name. Must be PascalCase and unique within the module (case-insensitive).",
+          "examples": [
+            "Domain",
+            "Application",
+            "Infrastructure",
+            "Api"
+          ],
+          "pattern": "^[A-Za-z][A-Za-z0-9]*$"
+        },
+        "type": {
+          "$ref": "#/$defs/projectType",
+          "description": "Project type that determines the .NET template to use."
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Override namespace for this layer's project. Defaults to module.namespace.layerName.",
+          "examples": [
+            "MyApp.Orders.Domain"
+          ],
+          "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)*$"
+        },
+        "references": {
+          "type": "array",
+          "description": "Project references. Supports exact names, glob patterns, module.layer syntax, and relative paths.",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "Orders.Domain",
+              "../SharedKernel",
+              "**/*.Api"
+            ]
+          ]
+        },
+        "packages": {
+          "type": "array",
+          "description": "NuGet package references. Format: PackageId:Version (e.g. FluentValidation:11.9.2).",
+          "items": {
+            "$ref": "#/$defs/packageRef"
+          },
+          "examples": [
+            [
+              "FluentValidation:11.9.2",
+              "Microsoft.EntityFrameworkCore.SqlServer:8.0.0"
+            ]
+          ]
+        },
+        "templates": {
+          "type": "array",
+          "description": "Template names to apply to this project on creation.",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "base-entity",
+              "value-object",
+              "repository-interface"
+            ]
+          ]
+        },
+        "properties": {
+          "$ref": "#/$defs/stringMap",
+          "description": "Custom key-value pairs passed to templates for conditional logic."
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "sharedProjectConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defines a shared project that can be referenced by any module or layer.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Project name. Must be unique across all shared projects and modules.",
+          "examples": [
+            "SharedKernel",
+            "Common"
+          ],
+          "pattern": "^[A-Za-z][A-Za-z0-9]*$"
+        },
+        "type": {
+          "$ref": "#/$defs/projectType",
+          "description": "Project type that determines the .NET template to use."
+        },
+        "templates": {
+          "type": "array",
+          "description": "Template names to apply to this shared project.",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "base-entity",
+              "result-pattern"
+            ]
+          ]
+        },
+        "packages": {
+          "type": "array",
+          "description": "NuGet package references for this shared project.",
+          "items": {
+            "$ref": "#/$defs/packageRef"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ]
+    },
+    "hostConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defines the host/entry-point project that references module API projects.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Host project name.",
+          "examples": [
+            "MyApp.Api.Host",
+            "MyApp.Web"
+          ]
+        },
+        "type": {
+          "$ref": "#/$defs/projectType",
+          "description": "Project type. Typically WebApi or Worker."
+        },
+        "references": {
+          "type": "array",
+          "description": "Project references to module API layers or other projects.",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "**/*.Api",
+              "SharedKernel"
+            ]
+          ]
+        },
+        "templates": {
+          "type": "array",
+          "description": "Template names to apply to the host project.",
+          "items": {
+            "type": "string"
+          },
+          "examples": [
+            [
+              "di-registration",
+              "middleware"
+            ]
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ]
+    },
+    "scaffoldingConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Custom scaffolding templates and shared variables for code generation.",
+      "properties": {
+        "templates": {
+          "type": "array",
+          "description": "Custom template definitions for project-specific generation.",
+          "items": {
+            "$ref": "#/$defs/customTemplateConfig"
+          }
+        },
+        "variables": {
+          "$ref": "#/$defs/stringMap",
+          "description": "Global variables available to all custom templates during scaffolding."
+        }
+      }
+    },
+    "customTemplateConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Defines a custom scaffolding template.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Template name referenced in layer or host templates arrays.",
+          "examples": [
+            "custom-controller",
+            "ef-core-configuration"
+          ]
+        },
+        "source": {
+          "type": "string",
+          "description": "Source path or URL for the template.",
+          "examples": [
+            "github:myorg/custom-templates",
+            "./templates/my-template"
+          ]
+        },
+        "outputPath": {
+          "type": "string",
+          "description": "Override output path relative to the project directory.",
+          "examples": [
+            "./Controllers",
+            "./Configurations"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "source"
+      ]
+    },
+    "packageRef": {
+      "type": "string",
+      "description": "NuGet package reference in the format PackageId:Version. The CLI validates the format at runtime.",
+      "pattern": "^[A-Za-z0-9.]+(:[A-Za-z0-9.*-]+)?$",
+      "examples": [
+        "FluentValidation:11.9.2",
+        "Microsoft.EntityFrameworkCore.SqlServer:8.0.0",
+        "Serilog.AspNetCore"
+      ]
+    },
+    "projectType": {
+      "type": "string",
+      "enum": [
+        "classlib",
+        "webapi",
+        "worker",
+        "console",
+        "maui",
+        "blazor",
+        "blazor-wasm",
+        "wpf",
+        "winforms",
+        "xunit-test",
+        "nunit-test",
+        "mstest",
+        "razor"
+      ],
+      "description": ".NET project type. Each value maps to a specific `dotnet new` template.",
+      "examples": [
+        "classlib",
+        "webapi",
+        "xunit-test"
+      ]
+    },
+    "architecturePattern": {
+      "type": "string",
+      "enum": [
+        "modular-monolith",
+        "clean-architecture",
+        "custom"
+      ],
+      "description": "Architecture pattern determining the solution structure and default layers.",
+      "examples": [
+        "modular-monolith",
+        "clean-architecture"
+      ]
+    },
+    "stringMap": {
+      "type": "object",
+      "description": "Dynamic string key-value map. Keys and values are user-defined.",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "examples": [
+        {
+          "UseAuthentication": "true",
+          "DbProvider": "SqlServer"
+        },
+        {
+          "Author": "MyCompany",
+          "CopyrightYear": "2026"
+        }
+      ]
+    }
+  }
+}
