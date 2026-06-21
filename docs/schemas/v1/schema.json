@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://essalab.github.io/Socotra/schemas/v1/schema.json",
+  "$id": "https://essalab.github.io/Socotra.Schemas/schemas/v1/schema.json",
   "title": "Socotra YAML Config",
   "description": "Schema for socotra.yaml — .NET solution scaffolding configuration. Defines the desired state of a .NET project: solution structure, modules, layers, architecture patterns, and scaffolding templates.",
   "type": "object",
@@ -20,11 +20,10 @@
         "version": {
           "type": "string",
           "pattern": "^1(\\.[0-9]+)?$",
-          "description": "Schema version. Currently versions 1, 1.0, and 1.1 are supported. The CLI validates this at runtime.",
+          "description": "Schema version. Currently version 1.0 is supported. The CLI validates this at runtime.",
           "examples": [
             "1",
-            "1.0",
-            "1.1"
+            "1.0"
           ]
         },
         "solution": {
@@ -139,14 +138,9 @@
           "description": "Architecture pattern that determines the solution structure.",
           "default": "modular-monolith"
         },
-        "enforceLayerConstraints": {
-          "type": "boolean",
-          "description": "When true, validates layer references against allowedDependencies and reports violations.",
-          "default": false
-        },
         "allowedDependencies": {
           "type": "array",
-          "description": "List of allowed dependency rules. Each rule defines a from/to glob pair.",
+          "description": "Custom dependency rules (only used when pattern is 'custom'). Each rule defines a from/to layer name pair.",
           "items": {
             "$ref": "#/$defs/dependencyRule"
           }
